@@ -398,8 +398,8 @@ export default function Home() {
             <Bot className="text-white w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">AI Co-pilot</h1>
-            <p className="text-xs text-slate-500 font-medium tracking-wide uppercase">Interview Mode</p>
+            <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">AI Questionnaire Tool</h1>
+            <p className="text-xs text-slate-500 font-medium tracking-wide uppercase">Live Copilot</p>
           </div>
         </div>
         

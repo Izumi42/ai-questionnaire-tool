@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Interview Co-pilot",
-  description: "Real-time AI assistant for interviewers",
+  title: "AI Questionnaire Tool",
+  description: "Real-time AI assistant for interviews and questionnaires",
 };
 
 export default function RootLayout({
