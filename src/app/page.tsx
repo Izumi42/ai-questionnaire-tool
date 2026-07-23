@@ -430,7 +430,7 @@ export default function Home() {
       <div className="flex-1 overflow-y-auto space-y-4 pr-2">
         
         {/* Agenda Section */}
-        <div className="mb-6 p-5 rounded-2xl glass-panel relative overflow-hidden">
+        <div className="mb-6 p-5 rounded-xl border border-white/10 bg-[#0f0f0f] relative overflow-hidden">
           <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500"></div>
           <h3 className="text-sm font-semibold text-slate-300 mb-3 flex items-center justify-between">
             Smart Agenda 
@@ -503,10 +503,8 @@ export default function Home() {
               });
               setSuggestions(prev => prev.filter(s => s.text !== suggestion.text));
             }}
-            className="group p-5 rounded-2xl glass-panel bg-slate-800/20 hover:bg-slate-800/40 hover:border-white/20 transition-all duration-300 cursor-pointer relative overflow-hidden hover:-translate-y-1 hover:shadow-indigo-500/10"
+            className="group p-5 rounded-xl border border-white/10 bg-[#0f0f0f] hover:bg-[#1a1a1a] transition-all duration-300 cursor-pointer relative overflow-hidden"
           >
-            {/* Subtle highlight effect on hover */}
-            <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/0 via-indigo-500/10 to-indigo-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
             
             <div className="flex items-start gap-4 relative z-10">
               <div className="mt-0.5 p-2 bg-slate-900/50 rounded-lg border border-slate-700/50 flex-shrink-0">
@@ -528,17 +526,17 @@ export default function Home() {
   );
 
   return (
-    <div className="flex flex-col h-screen bg-slate-950 text-slate-100 overflow-hidden font-sans selection:bg-indigo-500/30">
+    <div className="flex flex-col h-screen bg-[#0a0a0a] text-slate-100 overflow-hidden font-sans selection:bg-indigo-500/30">
       
       {/* Top Navigation Bar */}
-      <header className="flex items-center justify-between px-6 py-4 glass-panel border-b border-white/5 z-20">
+      <header className="flex items-center justify-between px-6 py-4 bg-[#0a0a0a] border-b border-white/10 z-20">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 ring-1 ring-white/20">
-            <HandHeart className="text-white w-6 h-6" />
+          <div className="w-10 h-10 rounded-lg bg-indigo-600 flex items-center justify-center border border-indigo-500/50">
+            <HandHeart className="text-white w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400 font-display">Insight.io</h1>
-            <p className="text-xs text-indigo-400 font-medium tracking-wide uppercase">Live Copilot</p>
+            <h1 className="text-xl font-bold text-slate-100 font-display">Insight.io</h1>
+            <p className="text-xs text-slate-400 font-medium tracking-wide uppercase">Live Copilot</p>
           </div>
         </div>
         
@@ -577,14 +575,9 @@ export default function Home() {
 
       {/* Main Content Area */}
       <main className="flex flex-1 overflow-hidden relative">
-        
-        {/* Background Gradients */}
-        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-indigo-600/20 rounded-full blur-[120px] pointer-events-none mix-blend-screen"></div>
-        <div className="absolute bottom-0 right-1/4 w-[700px] h-[700px] bg-purple-600/15 rounded-full blur-[150px] pointer-events-none mix-blend-screen"></div>
-        <div className="absolute top-1/2 left-1/2 w-[500px] h-[500px] bg-emerald-500/5 rounded-full blur-[150px] pointer-events-none -translate-x-1/2 -translate-y-1/2 mix-blend-screen"></div>
 
         {/* Left Column: Live Transcript */}
-        <div className="flex flex-col w-2/3 border-r border-white/5 p-6 z-10 relative">
+        <div className="flex flex-col w-2/3 border-r border-white/10 p-6 z-10 relative bg-[#0a0a0a]">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-lg font-semibold text-slate-200 flex items-center gap-2">
@@ -623,7 +616,7 @@ export default function Home() {
           
           {!isRecording && transcript.length === 0 ? (
             <div className="flex-1 overflow-y-auto pr-4 space-y-6">
-              <div className="p-8 glass-panel rounded-3xl relative overflow-hidden shadow-2xl">
+              <div className="mb-8 p-5 border border-white/10 bg-[#0f0f0f] relative overflow-hidden group">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"></div>
                 <h3 className="text-xl font-semibold text-slate-100 mb-2 font-display">Pre-Flight Setup</h3>
                 <p className="text-sm text-slate-400 mb-8">Provide context below to get hyper-personalized AI insights during the interview.</p>
@@ -676,20 +669,15 @@ export default function Home() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3 }}
                     key={msg.id} 
-                    className={`flex flex-col ${isInterviewer ? 'items-end' : 'items-start'}`}
+                    className="flex flex-col mb-4"
                   >
-                    <div className={`flex items-center gap-2 mb-1.5 px-1 ${isInterviewer ? 'flex-row-reverse' : ''}`}>
-                      <span className="text-xs font-medium uppercase tracking-wider text-slate-500">
+                    <div className="flex gap-4">
+                      <span className={`text-xs font-bold uppercase tracking-wider shrink-0 w-24 pt-0.5 ${isInterviewer ? 'text-slate-500' : 'text-indigo-500'}`}>
                         {isInterviewer ? 'You' : 'Candidate'}
                       </span>
-                      {isInterviewer ? <User className="w-3 h-3 text-slate-500" /> : <MonitorUp className="w-3 h-3 text-indigo-400" />}
-                    </div>
-                    <div className={`px-5 py-3.5 rounded-2xl max-w-[80%] text-sm leading-relaxed border ${
-                      isInterviewer 
-                        ? 'bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-md text-slate-200 border-white/5 shadow-lg rounded-tr-sm' 
-                        : 'bg-gradient-to-br from-indigo-600/20 to-purple-600/20 backdrop-blur-md text-indigo-50 border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.15)] rounded-tl-sm'
-                    }`}>
-                      {msg.text}
+                      <div className="text-sm leading-relaxed text-slate-200">
+                        {msg.text}
+                      </div>
                     </div>
                   </motion.div>
                 );
@@ -697,13 +685,11 @@ export default function Home() {
               
               {/* Interim Transcript (currently spoken text) */}
               {currentText && (
-                <div className="flex flex-col items-start opacity-70">
-                  <div className="flex items-center gap-2 mb-1.5 px-1">
-                    <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">
-                      Hearing...
-                    </span>
-                  </div>
-                  <div className="px-5 py-3.5 rounded-2xl max-w-[80%] text-sm leading-relaxed shadow-sm bg-slate-800/30 text-slate-300 border border-slate-700/30 rounded-tl-sm italic">
+                <div className="flex gap-4 opacity-70 mb-4">
+                  <span className="text-xs font-bold text-slate-600 uppercase tracking-wider shrink-0 w-24 pt-0.5">
+                    Hearing...
+                  </span>
+                  <div className="text-sm text-slate-400 italic">
                     {currentText}
                   </div>
                 </div>
@@ -715,7 +701,7 @@ export default function Home() {
         </div>
 
         {/* Right Column: AI Suggestions */}
-        <div className="flex flex-col w-1/3 glass-panel border-y-0 border-r-0 border-white/5 p-6 z-10 bg-slate-950/40 backdrop-blur-2xl">
+        <div className="flex flex-col w-1/3 bg-[#0a0a0a] p-6 z-10 border-l border-white/5">
           {pipWindow ? (
             <div className="flex-1 flex flex-col items-center justify-center text-slate-500 gap-4 opacity-60">
               <MonitorUp className="w-12 h-12" />

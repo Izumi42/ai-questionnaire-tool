@@ -25,7 +25,7 @@ export function EvaluationModal({
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="glass-panel w-full max-w-3xl max-h-[90vh] rounded-3xl overflow-hidden flex flex-col"
+            className="w-full max-w-3xl max-h-[90vh] rounded-xl overflow-hidden flex flex-col border border-white/10 bg-[#0f0f0f]"
           >
             <div className="p-6 border-b border-white/10 flex items-center justify-between bg-slate-900/30">
               <h2 className="text-xl font-bold text-slate-100 font-display">
@@ -41,7 +41,7 @@ export function EvaluationModal({
 
             <div className="flex-1 overflow-y-auto p-8 space-y-8">
               {/* Manual Rating */}
-              <div className="bg-slate-950/50 p-6 rounded-2xl border border-white/5 shadow-inner">
+              <div className="bg-[#111] p-6 rounded-xl border border-white/10">
                 <h3 className="text-sm font-semibold text-slate-300 mb-4 uppercase tracking-wider">
                   Your Rating
                 </h3>
@@ -72,7 +72,7 @@ export function EvaluationModal({
               <p className="text-xs text-slate-500">All data is processed securely.</p>
               <button
                 onClick={exportToMarkdown}
-                className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 hover:bg-white text-slate-900 font-semibold rounded-xl transition-colors shadow-lg shadow-white/5 cursor-pointer"
+                className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 hover:bg-white text-slate-900 font-semibold rounded-lg transition-colors cursor-pointer"
               >
                 <Download className="w-4 h-4" />
                 Save & Export Chat

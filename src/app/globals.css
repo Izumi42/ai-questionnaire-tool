@@ -12,8 +12,8 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #020617; /* Deep slate 950 */
-    --foreground: #f8fafc;
+    --background: #0a0a0a; /* Neutral absolute dark */
+    --foreground: #ededed;
   }
 }
 
@@ -41,7 +41,3 @@ body {
   background: rgba(255, 255, 255, 0.2);
 }
 
-/* Base animations and utilities */
-.glass-panel {
-  @apply bg-slate-900/40 backdrop-blur-xl border border-white/5 shadow-2xl;
-}

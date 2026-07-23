@@ -27,9 +27,9 @@ export function ApiSettingsModal({
             initial={{ opacity: 0, scale: 0.95, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
-            className="glass-panel w-full max-w-lg rounded-3xl overflow-hidden flex flex-col relative"
+            className="w-full max-w-lg rounded-xl overflow-hidden flex flex-col relative border border-white/10 bg-[#0f0f0f]"
           >
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-purple-500"></div>
+            <div className="absolute top-0 left-0 w-full h-1 bg-indigo-500"></div>
             <div className="p-6 border-b border-white/5 flex items-center justify-between bg-slate-900/30">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center border border-indigo-500/30">
@@ -97,7 +97,7 @@ export function ApiSettingsModal({
             <div className="p-6 border-t border-slate-800 bg-slate-900/50 flex justify-end">
               <button
                 onClick={onClose}
-                className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-medium transition-colors shadow-lg shadow-indigo-500/20"
+                className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-colors"
               >
                 Done
               </button>
