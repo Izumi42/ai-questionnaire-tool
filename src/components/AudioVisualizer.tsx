@@ -1,10 +1,21 @@
 import React, { useEffect, useRef } from "react";
 
+/**
+ * Props for the AudioVisualizer component.
+ * @property stream - The live MediaStream (microphone) to analyze.
+ * @property isActive - Whether the visualizer should actively animate. 
+ *                      If false, the canvas clears and the animation loop stops.
+ */
 interface AudioVisualizerProps {
   stream: MediaStream | null;
   isActive: boolean;
 }
 
+/**
+ * A highly optimized, vanilla HTML5 Canvas based audio visualizer.
+ * It utilizes the Web Audio API's AnalyserNode to extract real-time frequency data
+ * from the microphone stream, rendering a set of smooth bars that react to volume/pitch.
+ */
 export function AudioVisualizer({ stream, isActive }: AudioVisualizerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -37,20 +48,31 @@ export function AudioVisualizer({ stream, isActive }: AudioVisualizerProps) {
     canvas.height = rect.height * dpr;
     ctx.scale(dpr, dpr);
 
+    // ---------------------------------------------------------
+    // Web Audio API Setup
+    // ---------------------------------------------------------
+    // 1. Create a new AudioContext (handling cross-browser prefixes)
     const WindowType = window as unknown as { webkitAudioContext: typeof AudioContext };
     const audioCtx = new (window.AudioContext || WindowType.webkitAudioContext)();
     audioCtxRef.current = audioCtx;
 
+    // 2. Create the AnalyserNode to extract frequency data
     const analyser = audioCtx.createAnalyser();
-    analyser.fftSize = 64;
+    analyser.fftSize = 64; // Smaller fftSize = fewer frequency bins, which is perfect for a simple UI visualizer
     analyzerRef.current = analyser;
 
+    // 3. Connect the live microphone stream to the analyser
     const source = audioCtx.createMediaStreamSource(stream);
     sourceRef.current = source;
     source.connect(analyser);
 
+    // 4. Prepare a Uint8Array to receive the frequency data payload on each frame
     const bufferLength = analyser.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
+
+    // ---------------------------------------------------------
+    // Canvas Render Loop
+    // ---------------------------------------------------------
 
     const draw = () => {
       rafIdRef.current = requestAnimationFrame(draw);

@@ -1,5 +1,21 @@
 import Groq from "groq-sdk";
 
+/**
+ * Interacts with the Groq API (using the LLaMA 3.1 8B Instant model) to analyze 
+ * the live transcript and generate smart follow-up questions, identify red flags, 
+ * and track completed agenda items.
+ *
+ * @param params - The configuration and state payload required to generate insights.
+ * @param params.apiKey - The user's Groq API key, passed from localStorage/state.
+ * @param params.transcript - The full conversation history, labeled by speaker.
+ * @param params.focus - The specific interview domain (e.g., "Software Engineering").
+ * @param params.resume - Optional background context provided about the candidate.
+ * @param params.jobDescription - Optional requirements for the role being interviewed for.
+ * @param params.agendaItems - The list of mandatory topics the interviewer needs to cover.
+ * @param params.currentSuggestions - Array of strings representing the suggestions currently on screen, 
+ *                                    used to prevent the AI from generating duplicates.
+ * @returns A parsed JSON object containing the `suggestions` array and `completed_agenda_ids` array.
+ */
 export async function analyzeTranscriptClient(params: {
   apiKey: string;
   transcript: { speaker: string; text: string }[];
@@ -53,13 +69,14 @@ export async function analyzeTranscriptClient(params: {
       ${transcript.map((t: { speaker: string; text: string }) => `${t.speaker === 'interviewer' ? 'Interviewer' : 'Candidate'}: ${t.text}`).join("\n")}
     `;
 
+  // Execute the chat completion with a focus on JSON output
   const response = await groq.chat.completions.create({
     messages: [
       { role: "system", content: prompt }
     ],
-    model: "llama-3.1-8b-instant",
-    response_format: { type: "json_object" },
-    temperature: 0.5,
+    model: "llama-3.1-8b-instant", // We use the instant model for sub-second latency required in a live interview
+    response_format: { type: "json_object" }, // Force the model to return valid JSON
+    temperature: 0.5, // Keep temperature relatively low for logical consistency, but high enough to be creative with questions
   });
 
   let rawContent = response.choices[0]?.message?.content || '{"suggestions":[]}';

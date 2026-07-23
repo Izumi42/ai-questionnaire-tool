@@ -32,6 +32,12 @@ export default function Home() {
   const [selectedAudioDeviceId, setSelectedAudioDeviceId] = useState<string>("");
   const [visualizerStream, setVisualizerStream] = useState<MediaStream | null>(null);
 
+  // ---------------------------------------------------------
+  // Device Enumeration (Microphones)
+  // ---------------------------------------------------------
+  // On mount, query the browser for all available audio input devices.
+  // This populates the dropdown allowing the user to select which microphone 
+  // is passed into the left channel for the interviewer stream.
   useEffect(() => {
     async function fetchDevices() {
       try {
@@ -155,7 +161,12 @@ export default function Home() {
         socketRef.current = socket;
 
         socket.onopen = () => {
-          // Force stereo encoding in Chrome to prevent downmixing to mono
+          // ---------------------------------------------------------
+          // 📦 AUDIO ENCODING & TRANSMISSION
+          // ---------------------------------------------------------
+          // Force stereo encoding in Chrome to prevent downmixing to mono.
+          // By specifying audio/webm;codecs=opus and 128kbps, we ensure both
+          // channels survive the trip to the Deepgram WebSocket server.
           const mediaRecorder = new MediaRecorder(dest.stream, {
             mimeType: "audio/webm;codecs=opus",
             audioBitsPerSecond: 128000
@@ -164,11 +175,11 @@ export default function Home() {
 
           mediaRecorder.ondataavailable = (e) => {
             if (e.data.size > 0 && socket.readyState === 1) {
-              socket.send(e.data);
+              socket.send(e.data); // Stream raw bytes over WebSocket
             }
           };
 
-          // Send 250ms chunks to WebSocket instantly
+          // Send 250ms chunks to WebSocket instantly to achieve sub-second live transcription
           mediaRecorder.start(250);
         };
 
