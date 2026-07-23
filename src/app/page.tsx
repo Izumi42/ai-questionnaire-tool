@@ -276,6 +276,13 @@ export default function Home() {
         }
       });
 
+      // Force dark mode on the PiP window so the native title bar doesn't become light gray
+      pip.document.documentElement.style.colorScheme = "dark";
+      const meta = pip.document.createElement("meta");
+      meta.name = "theme-color";
+      meta.content = "#020617"; // slate-950
+      pip.document.head.appendChild(meta);
+
       // Base Tailwind classes for the body of the PiP window to match dark theme with glass effect
       pip.document.body.className = "bg-slate-950/80 backdrop-blur-2xl text-slate-100 font-sans p-6 selection:bg-indigo-500/30 overflow-hidden";
 
