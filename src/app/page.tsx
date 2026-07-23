@@ -556,12 +556,8 @@ export default function Home() {
       {/* Top Navigation Bar */}
       <header className="flex items-center justify-between px-6 py-4 bg-[#0a0a0a] border-b border-white/10 z-20">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-indigo-600 flex items-center justify-center border border-indigo-500/50">
-            <HandHeart className="text-white w-5 h-5" />
-          </div>
           <div>
             <h1 className="text-xl font-bold text-slate-100 font-display">Insight.io</h1>
-            <p className="text-xs text-slate-400 font-medium tracking-wide uppercase">Live Copilot</p>
           </div>
         </div>
         
