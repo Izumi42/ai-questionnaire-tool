@@ -1,5 +1,7 @@
 # Insight.io
 
+**🚀 Live Demo: [https://izumi42.github.io/ai-questionnaire-tool/](https://izumi42.github.io/ai-questionnaire-tool/)**
+
 A real-time, privacy-first AI assistant designed to sit alongside you during live interviews (via Google Meet, Zoom, etc.) and provide instant insights, automated agenda tracking, and smart follow-up questions.
 
 Built with **Next.js**, **Deepgram (Nova-2)**, and **Groq (LLaMA 3.1 8B Instant)**.
@@ -26,8 +28,8 @@ Built with **Next.js**, **Deepgram (Nova-2)**, and **Groq (LLaMA 3.1 8B Instant)
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/YOUR_USERNAME/insight-io.git
-cd insight-io
+git clone https://github.com/Izumi42/ai-questionnaire-tool.git
+cd ai-questionnaire-tool
 ```
 
 2. Install dependencies:
