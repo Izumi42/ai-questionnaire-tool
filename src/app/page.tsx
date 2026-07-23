@@ -276,8 +276,8 @@ export default function Home() {
         }
       });
 
-      // Force dark mode on the PiP window so the native title bar doesn't become light gray
-      pip.document.documentElement.style.colorScheme = "dark";
+      // Force light mode on the PiP window so the native close button becomes dark (fixes contrast on light title bars)
+      pip.document.documentElement.style.colorScheme = "light";
       const meta = pip.document.createElement("meta");
       meta.name = "theme-color";
       meta.content = "#020617"; // slate-950
