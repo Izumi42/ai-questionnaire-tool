@@ -2,22 +2,28 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { Mic, MicOff, Settings, User, HandHeart, AlertCircle, HelpCircle, MonitorUp, Star, Download, X, Trash2 } from "lucide-react";
+import { Mic, MicOff, User, HandHeart, AlertCircle, HelpCircle, MonitorUp, Star, Download, X, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { analyzeTranscriptClient, summarizeInterviewClient } from "@/lib/groqClient";
+import { analyzeTranscriptClient } from "@/lib/groqClient";
 
 export default function Home() {
+  // --- Core State ---
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState<{ id: string, text: string, speaker: "candidate" | "interviewer" }[]>([]);
   const [currentText, setCurrentText] = useState("");
   const [interviewFocus, setInterviewFocus] = useState("Software Engineering");
+  
+  // --- Refs for audio processing & real-time connections ---
   const transcriptRef = useRef<{ id: string, text: string, speaker: "candidate" | "interviewer" }[]>([]);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
   
+  // --- AI State ---
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  
+  // --- UI & Environment State ---
   const [apiError, setApiError] = useState<string | null>(null);
   const [pipWindow, setPipWindow] = useState<Window | null>(null);
 
@@ -35,11 +41,13 @@ export default function Home() {
     setDeepgramApiKey(localStorage.getItem("deepgramApiKey") || "");
   }, []);
 
+  // --- Pre-Flight Context State ---
   const [resumeText, setResumeText] = useState("");
   const [jobDescription, setJobDescription] = useState("");
   const [agendaItems, setAgendaItems] = useState<{ id: string, text: string, checked: boolean }[]>([]);
   const [newAgenda, setNewAgenda] = useState("");
   
+  // Auto-scroll anchor
   const transcriptEndRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
