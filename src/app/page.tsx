@@ -276,8 +276,8 @@ export default function Home() {
         }
       });
 
-      // Base Tailwind classes for the body of the PiP window to match dark theme
-      pip.document.body.className = "bg-slate-950 text-slate-100 font-sans p-6 selection:bg-indigo-500/30 overflow-hidden";
+      // Base Tailwind classes for the body of the PiP window to match dark theme with glass effect
+      pip.document.body.className = "bg-slate-950/80 backdrop-blur-2xl text-slate-100 font-sans p-6 selection:bg-indigo-500/30 overflow-hidden";
 
       pip.addEventListener("pagehide", () => {
         setPipWindow(null);
