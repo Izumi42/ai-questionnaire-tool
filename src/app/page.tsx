@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { Mic, MicOff, Settings, User, Bot, AlertCircle, HelpCircle, MonitorUp } from "lucide-react";
-import { motion } from "framer-motion";
+import { Mic, MicOff, Settings, User, HandHeart, AlertCircle, HelpCircle, MonitorUp, Star, Download, X, Trash2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function Home() {
   const [isRecording, setIsRecording] = useState(false);
@@ -20,19 +20,26 @@ export default function Home() {
   const [apiError, setApiError] = useState<string | null>(null);
   const [pipWindow, setPipWindow] = useState<Window | null>(null);
 
+  // Evaluation States
+  const [showEvaluation, setShowEvaluation] = useState(false);
+  const [manualRating, setManualRating] = useState<number>(0);
+  const [showNewSessionModal, setShowNewSessionModal] = useState(false);
+
   const [resumeText, setResumeText] = useState("");
   const [jobDescription, setJobDescription] = useState("");
-  const [agendaItems, setAgendaItems] = useState<{ id: string, text: string, checked: boolean }[]>([
-    { id: "1", text: "Ask about system design experience", checked: false },
-    { id: "2", text: "Discuss past conflict resolution", checked: false }
-  ]);
+  const [agendaItems, setAgendaItems] = useState<{ id: string, text: string, checked: boolean }[]>([]);
   const [newAgenda, setNewAgenda] = useState("");
+  
+  const transcriptEndRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [transcript, currentText]);
 
   // O(1) Latest context reference to prevent stale closures without infinite re-renders
-  const contextRef = useRef({ resumeText, jobDescription, agendaItems, interviewFocus });
+  const contextRef = useRef({ resumeText, jobDescription, agendaItems, interviewFocus, suggestions });
   useEffect(() => {
-    contextRef.current = { resumeText, jobDescription, agendaItems, interviewFocus };
-  }, [resumeText, jobDescription, agendaItems, interviewFocus]);
+    contextRef.current = { resumeText, jobDescription, agendaItems, interviewFocus, suggestions };
+  }, [resumeText, jobDescription, agendaItems, interviewFocus, suggestions]);
 
   useEffect(() => {
     transcriptRef.current = transcript;
@@ -84,15 +91,17 @@ export default function Home() {
           return;
         }
 
-        const socket = new WebSocket('wss://api.deepgram.com/v1/listen?model=nova-2&interim_results=true&smart_format=true&filler_words=false&multichannel=true', [
+        const socket = new WebSocket('wss://api.deepgram.com/v1/listen?model=nova-2&interim_results=true&smart_format=true&filler_words=false&multichannel=true&channels=2', [
           'token',
           apiKey
         ]);
         socketRef.current = socket;
 
         socket.onopen = () => {
+          // Force stereo encoding in Chrome to prevent downmixing to mono
           const mediaRecorder = new MediaRecorder(dest.stream, {
-            mimeType: "audio/webm",
+            mimeType: "audio/webm;codecs=opus",
+            audioBitsPerSecond: 128000
           });
           mediaRecorderRef.current = mediaRecorder;
 
@@ -111,7 +120,12 @@ export default function Home() {
             const received = JSON.parse(message.data);
             if (received.channel && received.channel.alternatives && received.channel.alternatives[0]) {
               const transcriptStr = received.channel.alternatives[0].transcript;
-              const speaker = received.channel_index === 1 ? "interviewer" : "candidate";
+              
+              // Handle Deepgram returning channel_index as an array [input, output] or integer
+              const channelIdx = Array.isArray(received.channel_index) ? received.channel_index[0] : received.channel_index;
+              
+              // channel 0 is the microphone (User/Interviewer), channel 1 is the screen audio (Candidate)
+              const speaker = channelIdx === 0 ? "interviewer" : "candidate";
               
               if (transcriptStr) {
                 if (received.is_final) {
@@ -119,7 +133,7 @@ export default function Home() {
                   setTranscript(prev => [...prev, { id, text: transcriptStr.trim(), speaker }]);
                   setCurrentText("");
                 } else {
-                  setCurrentText(`${speaker === 'interviewer' ? 'Interviewer' : 'You'}: ${transcriptStr}`);
+                  setCurrentText(`${speaker === 'interviewer' ? 'You' : 'Candidate'}: ${transcriptStr}`);
                 }
               }
             }
@@ -159,7 +173,9 @@ export default function Home() {
       if (socketRef.current) socketRef.current.close();
       if (micStream) (micStream as any).getTracks().forEach((t: any) => t.stop());
       if (screenStream) (screenStream as any).getTracks().forEach((t: any) => t.stop());
-      if (audioCtxRef.current) audioCtxRef.current.close();
+      if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
+        audioCtxRef.current.close().catch(console.error);
+      }
     }
 
     return () => {
@@ -170,7 +186,9 @@ export default function Home() {
       if (socketRef.current) socketRef.current.close();
       if (micStream) (micStream as any).getTracks().forEach((t: any) => t.stop());
       if (screenStream) (screenStream as any).getTracks().forEach((t: any) => t.stop());
-      if (audioCtxRef.current) audioCtxRef.current.close();
+      if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
+        audioCtxRef.current.close().catch(console.error);
+      }
     };
   }, [isRecording]);
 
@@ -226,6 +244,34 @@ export default function Home() {
     }
   };
 
+  const resetSession = () => {
+    if (isRecording) {
+      setIsRecording(false);
+    }
+    setTranscript([]);
+    setAgendaItems([]);
+    setSuggestions([]);
+    setResumeText("");
+    setJobDescription("");
+    setCurrentText("");
+    setManualRating(0);
+    setShowEvaluation(false);
+    setShowNewSessionModal(false);
+  };
+
+  const handleNewSessionClick = () => {
+    if (transcript.length > 0) {
+      setShowNewSessionModal(true);
+    } else {
+      resetSession();
+    }
+  };
+
+  const handleSaveAndReset = () => {
+    exportToMarkdown();
+    resetSession();
+  };
+
   // Analyze transcript when it changes (debounced)
   useEffect(() => {
     if (transcript.length === 0) return;
@@ -242,14 +288,15 @@ export default function Home() {
             focus: contextRef.current.interviewFocus,
             resume: contextRef.current.resumeText,
             jobDescription: contextRef.current.jobDescription,
-            agendaItems: contextRef.current.agendaItems.filter(item => !item.checked)
-          }) // Send last 10 lines, context, and unchecked agenda
+            agendaItems: contextRef.current.agendaItems.filter(item => !item.checked),
+            currentSuggestions: contextRef.current.suggestions.map(s => s.text)
+          }) // Send last 10 lines, context, unchecked agenda, and active suggestions
         });
         
         if (response.ok) {
           const data = await response.json();
           if (data.suggestions && data.suggestions.length > 0) {
-            setSuggestions(data.suggestions);
+            setSuggestions(prev => [...prev, ...data.suggestions].slice(-5));
           } else {
             setApiError("AI returned no suggestions.");
           }
@@ -283,6 +330,33 @@ export default function Home() {
     return () => clearTimeout(timer);
   }, [transcript, interviewFocus]);
 
+  const exportToMarkdown = () => {
+    let content = `# Interview Evaluation & Transcript\n\n`;
+    content += `**Focus Area:** ${interviewFocus}\n`;
+    content += `**Date:** ${new Date().toLocaleDateString()}\n\n`;
+    
+    if (manualRating > 0) {
+      content += `## Interviewer Manual Rating\n`;
+      content += `${manualRating} / 5 Stars\n\n`;
+    }
+
+    content += `## Full Transcript\n\n`;
+    transcript.forEach(msg => {
+      const speaker = msg.speaker === 'candidate' ? 'Candidate' : 'Interviewer';
+      content += `**${speaker}:** ${msg.text}\n\n`;
+    });
+
+    const blob = new Blob([content], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `interview-export-${new Date().toISOString().split('T')[0]}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const getIconForType = (type: string) => {
     switch (type) {
       case 'follow-up': return <HelpCircle className="w-5 h-5 text-blue-400" />;
@@ -294,33 +368,41 @@ export default function Home() {
   };
 
   const insightsContent = (
-    <div className="flex flex-col h-full bg-slate-950/30 z-10 w-full relative">
+    <div className="flex flex-col h-full bg-transparent z-10 w-full relative">
       <div className="flex items-center gap-2 mb-6">
-        <div className="w-2 h-6 rounded-full bg-indigo-500"></div>
-        <h2 className="text-lg font-semibold text-slate-200">AI Insights & Questions</h2>
+        <div className="w-2 h-6 rounded-full bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.8)]"></div>
+        <h2 className="text-lg font-semibold text-slate-200 font-display">AI Insights & Questions</h2>
         {isAnalyzing && (
-          <span className="ml-auto text-xs text-indigo-400 animate-pulse">Analyzing...</span>
+          <span className="ml-auto text-xs text-indigo-400 animate-pulse font-medium">Analyzing...</span>
         )}
       </div>
       
-      <div className="flex-1 overflow-y-auto space-y-4 scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
+      <div className="flex-1 overflow-y-auto space-y-4 pr-2">
         
         {/* Agenda Section */}
-        <div className="mb-6 p-4 rounded-xl bg-slate-800/20 border border-slate-700/50">
+        <div className="mb-6 p-5 rounded-2xl glass-panel relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500"></div>
           <h3 className="text-sm font-semibold text-slate-300 mb-3 flex items-center justify-between">
             Smart Agenda 
             <span className="text-xs font-normal text-slate-500">{agendaItems.filter(i => i.checked).length}/{agendaItems.length} completed</span>
           </h3>
           <div className="space-y-3">
             {agendaItems.map(item => (
-              <div key={item.id} className="flex items-start gap-3">
+              <div key={item.id} className="flex items-start gap-3 group">
                 <button 
                   onClick={() => setAgendaItems(prev => prev.map(i => i.id === item.id ? { ...i, checked: !i.checked } : i))}
                   className={`mt-0.5 flex-shrink-0 w-4 h-4 rounded-full border flex items-center justify-center transition-colors cursor-pointer ${item.checked ? 'bg-indigo-500 border-indigo-500' : 'border-slate-600 hover:border-slate-400'}`}
                 >
                   {item.checked && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
                 </button>
-                <span className={`text-sm ${item.checked ? 'text-slate-500 line-through' : 'text-slate-300'}`}>{item.text}</span>
+                <span className={`text-sm flex-1 ${item.checked ? 'text-slate-500 line-through' : 'text-slate-300'}`}>{item.text}</span>
+                <button 
+                  onClick={() => setAgendaItems(prev => prev.filter(i => i.id !== item.id))}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-slate-500 hover:text-red-400 flex-shrink-0 ml-1"
+                  title="Delete question"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
               </div>
             ))}
             
@@ -364,10 +446,17 @@ export default function Home() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.4, delay: i * 0.15 }}
             key={i} 
-            className="group p-5 rounded-2xl bg-slate-800/40 border border-slate-700/50 hover:bg-slate-800/80 hover:border-slate-600 transition-all cursor-pointer backdrop-blur-sm relative overflow-hidden"
+            onClick={() => {
+              setAgendaItems(prev => {
+                if (prev.some(item => item.text === suggestion.text)) return prev;
+                return [...prev, { id: `click-${Date.now()}`, text: suggestion.text, checked: false }];
+              });
+              setSuggestions(prev => prev.filter(s => s.text !== suggestion.text));
+            }}
+            className="group p-5 rounded-2xl glass-panel bg-slate-800/20 hover:bg-slate-800/40 hover:border-white/20 transition-all duration-300 cursor-pointer relative overflow-hidden hover:-translate-y-1 hover:shadow-indigo-500/10"
           >
             {/* Subtle highlight effect on hover */}
-            <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/0 via-indigo-500/5 to-indigo-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
+            <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/0 via-indigo-500/10 to-indigo-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
             
             <div className="flex items-start gap-4 relative z-10">
               <div className="mt-0.5 p-2 bg-slate-900/50 rounded-lg border border-slate-700/50 flex-shrink-0">
@@ -392,27 +481,27 @@ export default function Home() {
     <div className="flex flex-col h-screen bg-slate-950 text-slate-100 overflow-hidden font-sans selection:bg-indigo-500/30">
       
       {/* Top Navigation Bar */}
-      <header className="flex items-center justify-between px-6 py-4 border-b border-slate-800/50 bg-slate-950/80 backdrop-blur-md z-10">
+      <header className="flex items-center justify-between px-6 py-4 glass-panel border-b border-white/5 z-20">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-            <Bot className="text-white w-6 h-6" />
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 ring-1 ring-white/20">
+            <HandHeart className="text-white w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">AI Questionnaire Tool</h1>
-            <p className="text-xs text-slate-500 font-medium tracking-wide uppercase">Live Copilot</p>
+            <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400 font-display">Insight.io</h1>
+            <p className="text-xs text-indigo-400 font-medium tracking-wide uppercase">Live Copilot</p>
           </div>
         </div>
         
         <div className="flex items-center gap-4">
-          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm font-medium transition-colors ${isRecording ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-300' : 'bg-slate-900 border-slate-800 text-slate-300'}`}>
-            <div className={`w-2 h-2 rounded-full ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-slate-600'}`}></div>
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm font-medium transition-colors shadow-inner ${isRecording ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-300' : 'bg-slate-900/80 border-white/10 text-slate-300'}`}>
+            <div className={`w-2 h-2 rounded-full ${isRecording ? 'bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]' : 'bg-slate-600'}`}></div>
             {isRecording ? 'Listening...' : 'Standby'}
           </div>
           <div className="flex items-center gap-4">
           <select 
             value={interviewFocus}
             onChange={(e) => setInterviewFocus(e.target.value)}
-            className="bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 outline-none transition-colors"
+            className="bg-slate-900/80 backdrop-blur-sm border border-white/10 text-slate-200 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 outline-none transition-colors shadow-inner"
           >
             <option value="Software Engineering">Software Engineering</option>
             <option value="Product Management">Product Management</option>
@@ -425,6 +514,9 @@ export default function Home() {
             <MonitorUp className="w-4 h-4" />
             {pipWindow ? 'Close Overlay' : 'Pop Out Overlay'}
           </button>
+          <button onClick={handleNewSessionClick} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-sm font-medium transition-colors">
+            New Session
+          </button>
         </div>
         </div>
       </header>
@@ -433,11 +525,12 @@ export default function Home() {
       <main className="flex flex-1 overflow-hidden relative">
         
         {/* Background Gradients */}
-        <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-indigo-600/10 rounded-full blur-[120px] pointer-events-none"></div>
-        <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-purple-600/10 rounded-full blur-[100px] pointer-events-none"></div>
+        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-indigo-600/20 rounded-full blur-[120px] pointer-events-none mix-blend-screen"></div>
+        <div className="absolute bottom-0 right-1/4 w-[700px] h-[700px] bg-purple-600/15 rounded-full blur-[150px] pointer-events-none mix-blend-screen"></div>
+        <div className="absolute top-1/2 left-1/2 w-[500px] h-[500px] bg-emerald-500/5 rounded-full blur-[150px] pointer-events-none -translate-x-1/2 -translate-y-1/2 mix-blend-screen"></div>
 
         {/* Left Column: Live Transcript */}
-        <div className="flex flex-col w-2/3 border-r border-slate-800/50 p-6 z-10">
+        <div className="flex flex-col w-2/3 border-r border-white/5 p-6 z-10 relative">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-lg font-semibold text-slate-200 flex items-center gap-2">
@@ -448,28 +541,39 @@ export default function Home() {
               </p>
             </div>
             
-            <button 
-              onClick={(e) => {
-                toggleRecording();
-                e.currentTarget.blur(); // Fixes the spacebar bug!
-              }}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all shadow-lg ${
-                isRecording 
-                ? 'bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20 shadow-red-500/10' 
-                : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/20'
-              }`}
-            >
-              {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-              {isRecording ? 'Stop Listening' : 'Start Listening'}
-            </button>
+            <div className="flex items-center gap-3">
+              {!isRecording && transcript.length > 0 && (
+                <button
+                  onClick={() => setShowEvaluation(true)}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all shadow-lg bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/20"
+                >
+                  Finish & Evaluate
+                </button>
+              )}
+              <button 
+                onClick={(e) => {
+                  toggleRecording();
+                  e.currentTarget.blur();
+                }}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all shadow-lg ${
+                  isRecording 
+                  ? 'bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20 shadow-red-500/10' 
+                  : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/20'
+                }`}
+              >
+                {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                {isRecording ? 'Stop Listening' : (transcript.length > 0 ? 'Resume Listening' : 'Start Listening')}
+              </button>
+            </div>
           </div>
           
           {!isRecording && transcript.length === 0 ? (
             <div className="flex-1 overflow-y-auto pr-4 space-y-6">
-              <div className="p-6 bg-slate-900/30 rounded-2xl border border-slate-800/50 shadow-inner">
-                <h3 className="text-lg font-semibold text-slate-200 mb-2">Pre-Flight Setup</h3>
-                <p className="text-sm text-slate-400 mb-6">Provide context below to get hyper-personalized AI insights during the interview.</p>
-                <div className="space-y-5">
+              <div className="p-8 glass-panel rounded-3xl relative overflow-hidden shadow-2xl">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"></div>
+                <h3 className="text-xl font-semibold text-slate-100 mb-2 font-display">Pre-Flight Setup</h3>
+                <p className="text-sm text-slate-400 mb-8">Provide context below to get hyper-personalized AI insights during the interview.</p>
+                <div className="space-y-6">
                   <div>
                     <label className="block text-sm font-medium text-slate-300 mb-2 flex items-center gap-2">
                       Candidate Resume <span className="text-xs font-normal text-slate-500">(Optional)</span>
@@ -477,7 +581,7 @@ export default function Home() {
                     <textarea 
                       value={resumeText}
                       onChange={(e) => setResumeText(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm text-slate-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none h-32 scrollbar-thin scrollbar-thumb-slate-800 transition-colors resize-none"
+                      className="w-full bg-slate-950/50 backdrop-blur-md border border-white/10 rounded-xl p-4 text-sm text-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none h-32 transition-all resize-none shadow-inner"
                       placeholder="Paste the candidate's resume or LinkedIn profile here..."
                     />
                   </div>
@@ -488,7 +592,7 @@ export default function Home() {
                     <textarea 
                       value={jobDescription}
                       onChange={(e) => setJobDescription(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm text-slate-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none h-24 scrollbar-thin scrollbar-thumb-slate-800 transition-colors resize-none"
+                      className="w-full bg-slate-950/50 backdrop-blur-md border border-white/10 rounded-xl p-4 text-sm text-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none h-28 transition-all resize-none shadow-inner"
                       placeholder="Paste the job description or role requirements here..."
                     />
                   </div>
@@ -498,25 +602,25 @@ export default function Home() {
           ) : (
             <div className="flex-1 overflow-y-auto pr-4 space-y-6 scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
               {transcript.map((msg) => {
-                const isCandidate = msg.speaker === 'candidate';
+                const isInterviewer = msg.speaker === 'interviewer';
                 return (
                   <motion.div 
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3 }}
                     key={msg.id} 
-                    className={`flex flex-col ${isCandidate ? 'items-end' : 'items-start'}`}
+                    className={`flex flex-col ${isInterviewer ? 'items-end' : 'items-start'}`}
                   >
-                    <div className={`flex items-center gap-2 mb-1.5 px-1 ${isCandidate ? 'flex-row-reverse' : ''}`}>
+                    <div className={`flex items-center gap-2 mb-1.5 px-1 ${isInterviewer ? 'flex-row-reverse' : ''}`}>
                       <span className="text-xs font-medium uppercase tracking-wider text-slate-500">
-                        {isCandidate ? 'You' : 'Interviewer'}
+                        {isInterviewer ? 'You' : 'Candidate'}
                       </span>
-                      {isCandidate ? <User className="w-3 h-3 text-slate-500" /> : <MonitorUp className="w-3 h-3 text-indigo-400" />}
+                      {isInterviewer ? <User className="w-3 h-3 text-slate-500" /> : <MonitorUp className="w-3 h-3 text-indigo-400" />}
                     </div>
-                    <div className={`px-5 py-3.5 rounded-2xl max-w-[80%] text-sm leading-relaxed shadow-sm border ${
-                      isCandidate 
-                        ? 'bg-slate-800/60 text-slate-200 border-slate-700/50 rounded-tr-sm' 
-                        : 'bg-indigo-500/10 text-indigo-100 border-indigo-500/20 rounded-tl-sm'
+                    <div className={`px-5 py-3.5 rounded-2xl max-w-[80%] text-sm leading-relaxed border ${
+                      isInterviewer 
+                        ? 'bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-md text-slate-200 border-white/5 shadow-lg rounded-tr-sm' 
+                        : 'bg-gradient-to-br from-indigo-600/20 to-purple-600/20 backdrop-blur-md text-indigo-50 border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.15)] rounded-tl-sm'
                     }`}>
                       {msg.text}
                     </div>
@@ -537,13 +641,14 @@ export default function Home() {
                   </div>
                 </div>
               )}
-
+              
+              <div ref={transcriptEndRef} />
             </div>
           )}
         </div>
 
         {/* Right Column: AI Suggestions */}
-        <div className="flex flex-col w-1/3 bg-slate-900/30 p-6 z-10 border-l border-slate-800/50">
+        <div className="flex flex-col w-1/3 glass-panel border-y-0 border-r-0 border-white/5 p-6 z-10 bg-slate-950/40 backdrop-blur-2xl">
           {pipWindow ? (
             <div className="flex-1 flex flex-col items-center justify-center text-slate-500 gap-4 opacity-60">
               <MonitorUp className="w-12 h-12" />
@@ -557,6 +662,101 @@ export default function Home() {
         </div>
 
       </main>
+
+      {/* Evaluation Modal */}
+      <AnimatePresence>
+        {showEvaluation && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="glass-panel w-full max-w-3xl max-h-[90vh] rounded-3xl overflow-hidden flex flex-col"
+            >
+              <div className="p-6 border-b border-white/10 flex items-center justify-between bg-slate-900/30">
+                <h2 className="text-xl font-bold text-slate-100 font-display">Post-Interview Evaluation</h2>
+                <button onClick={() => setShowEvaluation(false)} className="p-2 text-slate-400 hover:text-white transition-colors bg-slate-800/50 rounded-full hover:bg-slate-700/50">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto p-8 space-y-8">
+                {/* Manual Rating */}
+                <div className="bg-slate-950/50 p-6 rounded-2xl border border-white/5 shadow-inner">
+                  <h3 className="text-sm font-semibold text-slate-300 mb-4 uppercase tracking-wider">Your Rating</h3>
+                  <div className="flex items-center gap-2">
+                    {[1, 2, 3, 4, 5].map(star => (
+                      <button 
+                        key={star}
+                        onClick={() => setManualRating(star)}
+                        className="transition-transform hover:scale-110 focus:outline-none"
+                      >
+                        <Star className={`w-8 h-8 ${manualRating >= star ? 'fill-amber-400 text-amber-400' : 'text-slate-600 hover:text-slate-500'}`} />
+                      </button>
+                    ))}
+                    <span className="ml-4 text-sm font-medium text-slate-400">
+                      {manualRating > 0 ? `${manualRating} out of 5 stars` : 'Select a rating'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 border-t border-slate-800 bg-slate-900/50 flex justify-between items-center">
+                <p className="text-xs text-slate-500">All data is processed securely.</p>
+                <button 
+                  onClick={exportToMarkdown}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 hover:bg-white text-slate-900 font-semibold rounded-xl transition-colors shadow-lg shadow-white/5"
+                >
+                  <Download className="w-4 h-4" />
+                  Save & Export Chat
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* New Session Confirmation Modal */}
+      <AnimatePresence>
+        {showNewSessionModal && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="glass-panel w-full max-w-md rounded-3xl overflow-hidden flex flex-col relative"
+            >
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 to-orange-500"></div>
+              <div className="p-6 border-b border-white/5 flex items-center justify-between bg-slate-900/30">
+                <h2 className="text-xl font-bold text-slate-100">Start New Session</h2>
+                <button onClick={() => setShowNewSessionModal(false)} className="p-2 text-slate-400 hover:text-slate-200 transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-6 text-slate-300 text-sm">
+                <p>Are you sure you want to start a new session? This will clear the current transcript, agenda, and context.</p>
+                <p className="mt-2 text-indigo-300 font-medium">Would you like to save the current chat before resetting?</p>
+              </div>
+              <div className="p-6 border-t border-slate-800 bg-slate-900/50 flex justify-end gap-3">
+                <button 
+                  onClick={resetSession}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl text-sm font-medium transition-colors"
+                >
+                  Discard & Reset
+                </button>
+                <button 
+                  onClick={handleSaveAndReset}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-medium transition-colors flex items-center gap-2 shadow-lg shadow-indigo-500/20"
+                >
+                  <Download className="w-4 h-4" />
+                  Save & Reset
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }
