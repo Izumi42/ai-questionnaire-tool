@@ -8,6 +8,7 @@ import { analyzeTranscriptClient } from "@/lib/groqClient";
 import { ApiSettingsModal } from "@/components/ApiSettingsModal";
 import { EvaluationModal } from "@/components/EvaluationModal";
 import { NewSessionModal } from "@/components/NewSessionModal";
+import { AudioVisualizer } from "@/components/AudioVisualizer";
 
 export default function Home() {
   // --- Core State ---
@@ -25,6 +26,27 @@ export default function Home() {
   // --- AI State ---
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  
+  // --- Audio Devices State ---
+  const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedAudioDeviceId, setSelectedAudioDeviceId] = useState<string>("");
+  const [visualizerStream, setVisualizerStream] = useState<MediaStream | null>(null);
+
+  useEffect(() => {
+    async function fetchDevices() {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const mics = devices.filter(d => d.kind === "audioinput");
+        setAudioDevices(mics);
+        if (mics.length > 0) {
+          setSelectedAudioDeviceId(mics[0].deviceId);
+        }
+      } catch (err) {
+        console.error("Failed to enumerate devices", err);
+      }
+    }
+    fetchDevices();
+  }, []);
   
   // --- UI & Environment State ---
   const [apiError, setApiError] = useState<string | null>(null);
@@ -93,7 +115,10 @@ export default function Home() {
         });
 
         // 2. Get Microphone Audio (Interviewer / User audio)
-        micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        micStream = await navigator.mediaDevices.getUserMedia({ 
+          audio: selectedAudioDeviceId ? { deviceId: { exact: selectedAudioDeviceId } } : true 
+        });
+        setVisualizerStream(micStream);
 
         // 3. Mix the streams into Stereo (Left = Mic, Right = Screen)
         const audioCtx = new window.AudioContext();
@@ -541,9 +566,12 @@ export default function Home() {
         </div>
         
         <div className="flex items-center gap-4">
-          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm font-medium transition-colors shadow-inner ${isRecording ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-300' : 'bg-slate-900/80 border-white/10 text-slate-300'}`}>
-            <div className={`w-2 h-2 rounded-full ${isRecording ? 'bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]' : 'bg-slate-600'}`}></div>
-            {isRecording ? 'Listening...' : 'Standby'}
+          <div className="flex items-center gap-3">
+            <AudioVisualizer stream={visualizerStream} isActive={isRecording} />
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm font-medium transition-colors shadow-inner ${isRecording ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-300' : 'bg-slate-900/80 border-white/10 text-slate-300'}`}>
+              <div className={`w-2 h-2 rounded-full ${isRecording ? 'bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]' : 'bg-slate-600'}`}></div>
+              {isRecording ? 'Listening...' : 'Standby'}
+            </div>
           </div>
           <div className="flex items-center gap-4">
           <select 
@@ -557,6 +585,21 @@ export default function Home() {
             <option value="Sales / Customer Success">Sales / Customer Success</option>
             <option value="Executive / C-Suite">Executive / C-Suite</option>
           </select>
+          
+          {audioDevices.length > 0 && (
+            <select 
+              value={selectedAudioDeviceId}
+              onChange={(e) => setSelectedAudioDeviceId(e.target.value)}
+              className="bg-slate-900/80 backdrop-blur-sm border border-white/10 text-slate-200 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 outline-none transition-colors shadow-inner max-w-[200px] truncate"
+              title="Select Microphone"
+            >
+              {audioDevices.map(device => (
+                <option key={device.deviceId} value={device.deviceId}>
+                  {device.label || `Microphone ${device.deviceId.slice(0, 5)}...`}
+                </option>
+              ))}
+            </select>
+          )}
           
           <button onClick={togglePip} className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors flex items-center gap-2 ${pipWindow ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-300' : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'}`}>
             <MonitorUp className="w-4 h-4" />
