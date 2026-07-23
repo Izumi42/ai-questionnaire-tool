@@ -1,2 +1,2 @@
-:HL["/_next/static/chunks/062hrg5pmt6t0.css","style"]
-0:{"tree":{"name":"","param":null,"prefetchHints":16,"slots":{"children":{"name":"/_not-found","param":null,"prefetchHints":0,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":0,"slots":null}}}}},"staleTime":300,"buildId":"JeySWHvJmWtR6hVDliAXU"}
+:HL["/ai-questionnaire-tool/_next/static/chunks/23ob3c6prp838.css","style"]
+0:{"tree":{"name":"","param":null,"prefetchHints":16,"slots":{"children":{"name":"/_not-found","param":null,"prefetchHints":0,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":0,"slots":null}}}}},"staleTime":300,"buildId":"ZkhlimN8iBy9kALiWoNVj"}

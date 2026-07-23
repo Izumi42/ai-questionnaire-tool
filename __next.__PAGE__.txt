@@ -1,9 +1,9 @@
 1:"$Sreact.fragment"
-2:I[48941,["/_next/static/chunks/2ke52cdpte426.js"],"ClientPageRoot"]
-3:I[85600,["/_next/static/chunks/2ke52cdpte426.js","/_next/static/chunks/2lnf0tvflv6lb.js"],"default"]
-6:I[50293,["/_next/static/chunks/2ke52cdpte426.js"],"OutletBoundary"]
+2:I[48941,["/ai-questionnaire-tool/_next/static/chunks/2ke52cdpte426.js"],"ClientPageRoot"]
+3:I[85600,["/ai-questionnaire-tool/_next/static/chunks/2ke52cdpte426.js","/ai-questionnaire-tool/_next/static/chunks/2lnf0tvflv6lb.js"],"default"]
+6:I[50293,["/ai-questionnaire-tool/_next/static/chunks/2ke52cdpte426.js"],"OutletBoundary"]
 7:"$Sreact.suspense"
-0:{"rsc":["$","$1","c",{"children":[["$","$L2",null,{"Component":"$3","serverProvidedParams":{"searchParams":{},"params":{},"promises":["$@4","$@5"]}}],[["$","script","script-0",{"src":"/_next/static/chunks/2lnf0tvflv6lb.js","async":true}]],["$","$L6",null,{"children":["$","$7",null,{"name":"Next.MetadataOutlet","children":"$@8"}]}]]}],"isPartial":false,"staleTime":300,"varyParams":null,"buildId":"JeySWHvJmWtR6hVDliAXU"}
+0:{"rsc":["$","$1","c",{"children":[["$","$L2",null,{"Component":"$3","serverProvidedParams":{"searchParams":{},"params":{},"promises":["$@4","$@5"]}}],[["$","script","script-0",{"src":"/ai-questionnaire-tool/_next/static/chunks/2lnf0tvflv6lb.js","async":true}]],["$","$L6",null,{"children":["$","$7",null,{"name":"Next.MetadataOutlet","children":"$@8"}]}]]}],"isPartial":false,"staleTime":300,"varyParams":null,"buildId":"ZkhlimN8iBy9kALiWoNVj"}
 4:{}
 5:"$0:rsc:props:children:0:props:serverProvidedParams:params"
 8:null
