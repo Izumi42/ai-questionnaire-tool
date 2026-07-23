@@ -5,6 +5,9 @@ import { createPortal } from "react-dom";
 import { Mic, MicOff, User, HandHeart, AlertCircle, HelpCircle, MonitorUp, Star, Download, X, Trash2, Settings } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { analyzeTranscriptClient } from "@/lib/groqClient";
+import { ApiSettingsModal } from "@/components/ApiSettingsModal";
+import { EvaluationModal } from "@/components/EvaluationModal";
+import { NewSessionModal } from "@/components/NewSessionModal";
 
 export default function Home() {
   // --- Core State ---
@@ -73,13 +76,23 @@ export default function Home() {
       if (!isRecordingActive) return;
 
       try {
-        // 1. Get Screen Audio (Google Meet)
+        // ============================================================================
+        // 🎙️ WEB AUDIO API STEREO MIXING ARCHITECTURE
+        // ============================================================================
+        // Deepgram's multichannel feature requires a single audio stream with 
+        // distinct channels (e.g. Left and Right) to differentiate speakers.
+        // We achieve this by capturing two separate media streams (Microphone for the 
+        // interviewer, and Screen/Tab audio for the candidate via Google Meet).
+        // We then use the Web Audio API ChannelMergerNode to route the Microphone 
+        // to Channel 0 (Left) and the Tab Audio to Channel 1 (Right).
+        
+        // 1. Get Screen Audio (Candidate audio from Google Meet/Zoom)
         screenStream = await navigator.mediaDevices.getDisplayMedia({ 
           video: true, 
           audio: true 
         });
 
-        // 2. Get Microphone Audio (User)
+        // 2. Get Microphone Audio (Interviewer / User audio)
         micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
         // 3. Mix the streams into Stereo (Left = Mic, Right = Screen)
@@ -140,10 +153,17 @@ export default function Home() {
             if (received.channel && received.channel.alternatives && received.channel.alternatives[0]) {
               const transcriptStr = received.channel.alternatives[0].transcript;
               
+              // ============================================================================
+              // 🧠 SPEAKER DIARIZATION (CHANNEL INDEX MAPPING)
+              // ============================================================================
+              // Deepgram tells us which channel this text came from (0 or 1).
+              // Because of our Stereo Mixing above, we know exactly who is who:
+              // Channel 0 (Left) = Microphone = The Interviewer (You)
+              // Channel 1 (Right) = Tab Audio = The Candidate
+              
               // Handle Deepgram returning channel_index as an array [input, output] or integer
               const channelIdx = Array.isArray(received.channel_index) ? received.channel_index[0] : received.channel_index;
               
-              // channel 0 is the microphone (User/Interviewer), channel 1 is the screen audio (Candidate)
               const speaker = channelIdx === 0 ? "interviewer" : "candidate";
               
               if (transcriptStr) {
@@ -227,12 +247,19 @@ export default function Home() {
     }
 
     try {
+      // ============================================================================
+      // 📺 DOCUMENT PICTURE-IN-PICTURE (PiP) ARCHITECTURE
+      // ============================================================================
+      // Document PiP allows us to pop out an entire DOM tree into a floating window 
+      // that stays on top of other tabs. This is crucial for interviewers who need 
+      // to look at Google Meet while still seeing the AI insights.
+      // We must physically copy the CSS stylesheets into the new window's document.
       const pip = await (window as any).documentPictureInPicture.requestWindow({
         width: 450,
         height: 600,
       });
 
-      // Copy styles
+      // Copy all styles from the main window to the PiP window
       [...document.styleSheets].forEach((styleSheet) => {
         try {
           const cssRules = [...styleSheet.cssRules].map((rule) => rule.cssText).join('');
@@ -291,7 +318,13 @@ export default function Home() {
     resetSession();
   };
 
-  // Analyze transcript when it changes (debounced)
+  // ============================================================================
+  // 🤖 AI INSIGHT GENERATION ENGINE (DEBOUNCED)
+  // ============================================================================
+  // We don't want to spam the Groq API every time a word is spoken. 
+  // Instead, we wait for a 3-second pause in conversation (debounce) before 
+  // sending the last 10 messages of context to the LLM to generate insights.
+  // The LLM checks the current transcript against the job description and resume.
   useEffect(() => {
     if (transcript.length === 0) return;
 
@@ -690,178 +723,30 @@ export default function Home() {
 
       </main>
 
-      {/* Evaluation Modal */}
-      <AnimatePresence>
-        {showEvaluation && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="glass-panel w-full max-w-3xl max-h-[90vh] rounded-3xl overflow-hidden flex flex-col"
-            >
-              <div className="p-6 border-b border-white/10 flex items-center justify-between bg-slate-900/30">
-                <h2 className="text-xl font-bold text-slate-100 font-display">Post-Interview Evaluation</h2>
-                <button onClick={() => setShowEvaluation(false)} className="p-2 text-slate-400 hover:text-white transition-colors bg-slate-800/50 rounded-full hover:bg-slate-700/50">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              
-              <div className="flex-1 overflow-y-auto p-8 space-y-8">
-                {/* Manual Rating */}
-                <div className="bg-slate-950/50 p-6 rounded-2xl border border-white/5 shadow-inner">
-                  <h3 className="text-sm font-semibold text-slate-300 mb-4 uppercase tracking-wider">Your Rating</h3>
-                  <div className="flex items-center gap-2">
-                    {[1, 2, 3, 4, 5].map(star => (
-                      <button 
-                        key={star}
-                        onClick={() => setManualRating(star)}
-                        className="transition-transform hover:scale-110 focus:outline-none"
-                      >
-                        <Star className={`w-8 h-8 ${manualRating >= star ? 'fill-amber-400 text-amber-400' : 'text-slate-600 hover:text-slate-500'}`} />
-                      </button>
-                    ))}
-                    <span className="ml-4 text-sm font-medium text-slate-400">
-                      {manualRating > 0 ? `${manualRating} out of 5 stars` : 'Select a rating'}
-                    </span>
-                  </div>
-                </div>
-              </div>
+      {/* Componentized Modals */}
+      <EvaluationModal 
+        isOpen={showEvaluation}
+        onClose={() => setShowEvaluation(false)}
+        manualRating={manualRating}
+        setManualRating={setManualRating}
+        exportToMarkdown={exportToMarkdown}
+      />
 
-              <div className="p-6 border-t border-slate-800 bg-slate-900/50 flex justify-between items-center">
-                <p className="text-xs text-slate-500">All data is processed securely.</p>
-                <button 
-                  onClick={exportToMarkdown}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 hover:bg-white text-slate-900 font-semibold rounded-xl transition-colors shadow-lg shadow-white/5"
-                >
-                  <Download className="w-4 h-4" />
-                  Save & Export Chat
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      <NewSessionModal 
+        isOpen={showNewSessionModal}
+        onClose={() => setShowNewSessionModal(false)}
+        onReset={resetSession}
+        onSaveAndReset={handleSaveAndReset}
+      />
 
-      {/* New Session Confirmation Modal */}
-      <AnimatePresence>
-        {showNewSessionModal && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="glass-panel w-full max-w-md rounded-3xl overflow-hidden flex flex-col relative"
-            >
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 to-orange-500"></div>
-              <div className="p-6 border-b border-white/5 flex items-center justify-between bg-slate-900/30">
-                <h2 className="text-xl font-bold text-slate-100">Start New Session</h2>
-                <button onClick={() => setShowNewSessionModal(false)} className="p-2 text-slate-400 hover:text-slate-200 transition-colors">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="p-6 text-slate-300 text-sm">
-                <p>Are you sure you want to start a new session? This will clear the current transcript, agenda, and context.</p>
-                <p className="mt-2 text-indigo-300 font-medium">Would you like to save the current chat before resetting?</p>
-              </div>
-              <div className="p-6 border-t border-slate-800 bg-slate-900/50 flex justify-end gap-3">
-                <button 
-                  onClick={resetSession}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl text-sm font-medium transition-colors"
-                >
-                  Discard & Reset
-                </button>
-                <button 
-                  onClick={handleSaveAndReset}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-medium transition-colors flex items-center gap-2 shadow-lg shadow-indigo-500/20"
-                >
-                  <Download className="w-4 h-4" />
-                  Save & Reset
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* API Settings Modal */}
-      <AnimatePresence>
-        {isSettingsOpen && (
-          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="glass-panel w-full max-w-lg rounded-3xl overflow-hidden flex flex-col relative"
-            >
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-purple-500"></div>
-              <div className="p-6 border-b border-white/5 flex items-center justify-between bg-slate-900/30">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center border border-indigo-500/30">
-                    <Settings className="w-4 h-4 text-indigo-400" />
-                  </div>
-                  <h2 className="text-xl font-bold text-slate-100 font-display">API Settings</h2>
-                </div>
-                <button onClick={() => setIsSettingsOpen(false)} className="p-2 text-slate-400 hover:text-slate-200 transition-colors bg-slate-800/50 rounded-full hover:bg-slate-700/50">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              
-              <div className="p-6 space-y-6 bg-slate-950/50">
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2 flex items-center gap-2">
-                    Groq API Key <span className="text-xs font-normal text-slate-500">(Required)</span>
-                  </label>
-                  <input 
-                    type="password"
-                    value={groqApiKey}
-                    onChange={(e) => {
-                      setGroqApiKey(e.target.value);
-                      localStorage.setItem("groqApiKey", e.target.value);
-                    }}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all shadow-inner"
-                    placeholder="gsk_..."
-                  />
-                  <p className="mt-2 text-xs text-slate-500">Used for generating AI insights from the conversation.</p>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2 flex items-center gap-2">
-                    Deepgram API Key <span className="text-xs font-normal text-slate-500">(Required)</span>
-                  </label>
-                  <input 
-                    type="password"
-                    value={deepgramApiKey}
-                    onChange={(e) => {
-                      setDeepgramApiKey(e.target.value);
-                      localStorage.setItem("deepgramApiKey", e.target.value);
-                    }}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all shadow-inner"
-                    placeholder="Live transcription key..."
-                  />
-                  <p className="mt-2 text-xs text-slate-500">Used for real-time speech-to-text transcription.</p>
-                </div>
-
-                <div className="p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-300/80 text-xs leading-relaxed flex gap-3 items-start">
-                  <AlertCircle className="w-5 h-5 flex-shrink-0 text-indigo-400" />
-                  <p>
-                    Security Note: Your keys are never sent to our servers. They are stored locally in your browser's <code className="bg-slate-900 px-1 rounded text-indigo-400">localStorage</code> and transmitted securely directly to the respective API providers.
-                  </p>
-                </div>
-              </div>
-              
-              <div className="p-6 border-t border-slate-800 bg-slate-900/50 flex justify-end">
-                <button 
-                  onClick={() => setIsSettingsOpen(false)}
-                  className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-medium transition-colors shadow-lg shadow-indigo-500/20"
-                >
-                  Done
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      <ApiSettingsModal 
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        groqApiKey={groqApiKey}
+        setGroqApiKey={setGroqApiKey}
+        deepgramApiKey={deepgramApiKey}
+        setDeepgramApiKey={setDeepgramApiKey}
+      />
 
 
     </div>
