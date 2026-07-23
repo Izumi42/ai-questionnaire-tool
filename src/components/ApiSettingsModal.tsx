@@ -87,7 +87,7 @@ export function ApiSettingsModal({
               <div className="p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-300/80 text-xs leading-relaxed flex gap-3 items-start">
                 <AlertCircle className="w-5 h-5 flex-shrink-0 text-indigo-400" />
                 <p>
-                  Security Note: Your keys are never sent to our servers. They are stored locally in your browser's{" "}
+                  Security Note: Your keys are never sent to our servers. They are stored locally in your browser&apos;s{" "}
                   <code className="bg-slate-900 px-1 rounded text-indigo-400">localStorage</code> and transmitted securely
                   directly to the respective API providers.
                 </p>

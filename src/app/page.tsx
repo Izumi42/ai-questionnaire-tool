@@ -201,8 +201,8 @@ export default function Home() {
                 }
               }
             }
-          } catch (e) {
-            console.error("Failed to parse Deepgram message", e);
+          } catch (err) {
+            console.error("Failed to parse Deepgram message", err);
           }
         };
 
@@ -254,7 +254,7 @@ export default function Home() {
         audioCtxRef.current.close().catch(console.error);
       }
     };
-  }, [isRecording]);
+  }, [isRecording, selectedAudioDeviceId]);
 
   const toggleRecording = () => {
     setIsRecording(!isRecording);
@@ -291,7 +291,7 @@ export default function Home() {
           const style = document.createElement('style');
           style.textContent = cssRules;
           pip.document.head.appendChild(style);
-        } catch (e) {
+        } catch (err) {
           const link = document.createElement('link');
           link.rel = 'stylesheet';
           link.type = styleSheet.type;
@@ -316,7 +316,7 @@ export default function Home() {
       });
 
       setPipWindow(pip);
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
       setApiError("Failed to open Picture-in-Picture window.");
     }

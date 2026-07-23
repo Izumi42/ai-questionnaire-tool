@@ -37,7 +37,8 @@ export function AudioVisualizer({ stream, isActive }: AudioVisualizerProps) {
     canvas.height = rect.height * dpr;
     ctx.scale(dpr, dpr);
 
-    const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const WindowType = window as unknown as { webkitAudioContext: typeof AudioContext };
+    const audioCtx = new (window.AudioContext || WindowType.webkitAudioContext)();
     audioCtxRef.current = audioCtx;
 
     const analyser = audioCtx.createAnalyser();

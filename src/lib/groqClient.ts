@@ -35,7 +35,7 @@ export async function analyzeTranscriptClient(params: {
       
       ${agendaItems.length > 0 ? `The interviewer has a mandatory checklist of agenda items they need to cover.
       Here are the currently unchecked agenda items:
-      ${agendaItems.map((item: any) => `- ID: ${item.id} | Topic: ${item.text}`).join('\n')}
+      ${agendaItems.map((item: { id: string; text: string; checked: boolean }) => `- ID: ${item.id} | Topic: ${item.text}`).join('\n')}
       If the Candidate has explicitly provided a sufficient answer to one of these agenda items in the recent transcript, include the ID of that agenda item in the "completed_agenda_ids" array. CRITICAL: DO NOT check off an agenda item just because the Interviewer asked the question or mentioned the topic. The item is ONLY complete when the CANDIDATE provides a substantive answer.
       IMPORTANT: DO NOT generate new "follow-up" suggestions that ask for the same information as the unchecked agenda items above. Only suggest entirely new follow-up questions.` : ''}
 
@@ -50,7 +50,7 @@ export async function analyzeTranscriptClient(params: {
       2. "completed_agenda_ids": an array of string IDs representing the agenda items that were successfully covered in the transcript. If none were covered, return an empty array [].
       
       Transcript so far:
-      ${transcript.map((t: any) => `${t.speaker === 'interviewer' ? 'Interviewer' : 'Candidate'}: ${t.text}`).join("\n")}
+      ${transcript.map((t: { speaker: string; text: string }) => `${t.speaker === 'interviewer' ? 'Interviewer' : 'Candidate'}: ${t.text}`).join("\n")}
     `;
 
   const response = await groq.chat.completions.create({
@@ -67,7 +67,7 @@ export async function analyzeTranscriptClient(params: {
   
   try {
     return JSON.parse(rawContent);
-  } catch (e) {
+  } catch (err) {
     console.error("Failed to parse AI response as JSON", rawContent);
     return { suggestions: [], completed_agenda_ids: [] };
   }
