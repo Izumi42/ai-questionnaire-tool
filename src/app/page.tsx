@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Mic, MicOff, Settings, User, HandHeart, AlertCircle, HelpCircle, MonitorUp, Star, Download, X, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { analyzeTranscriptClient, summarizeInterviewClient } from "@/lib/groqClient";
 
 export default function Home() {
   const [isRecording, setIsRecording] = useState(false);
@@ -25,6 +26,15 @@ export default function Home() {
   const [manualRating, setManualRating] = useState<number>(0);
   const [showNewSessionModal, setShowNewSessionModal] = useState(false);
 
+  // API Key States
+  const [groqApiKey, setGroqApiKey] = useState("");
+  const [deepgramApiKey, setDeepgramApiKey] = useState("");
+
+  useEffect(() => {
+    setGroqApiKey(localStorage.getItem("groqApiKey") || "");
+    setDeepgramApiKey(localStorage.getItem("deepgramApiKey") || "");
+  }, []);
+
   const [resumeText, setResumeText] = useState("");
   const [jobDescription, setJobDescription] = useState("");
   const [agendaItems, setAgendaItems] = useState<{ id: string, text: string, checked: boolean }[]>([]);
@@ -36,10 +46,10 @@ export default function Home() {
   }, [transcript, currentText]);
 
   // O(1) Latest context reference to prevent stale closures without infinite re-renders
-  const contextRef = useRef({ resumeText, jobDescription, agendaItems, interviewFocus, suggestions });
+  const contextRef = useRef({ resumeText, jobDescription, agendaItems, interviewFocus, suggestions, groqApiKey, deepgramApiKey });
   useEffect(() => {
-    contextRef.current = { resumeText, jobDescription, agendaItems, interviewFocus, suggestions };
-  }, [resumeText, jobDescription, agendaItems, interviewFocus, suggestions]);
+    contextRef.current = { resumeText, jobDescription, agendaItems, interviewFocus, suggestions, groqApiKey, deepgramApiKey };
+  }, [resumeText, jobDescription, agendaItems, interviewFocus, suggestions, groqApiKey, deepgramApiKey]);
 
   useEffect(() => {
     transcriptRef.current = transcript;
@@ -84,9 +94,9 @@ export default function Home() {
         merger.connect(dest);
 
         // 4. Setup Deepgram WebSocket
-        const apiKey = process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY;
+        const apiKey = contextRef.current.deepgramApiKey || process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY;
         if (!apiKey) {
-          setApiError("Deepgram API Key is missing in .env.local!");
+          setApiError("Deepgram API Key is missing! Please add it in the setup panel.");
           setIsRecording(false);
           return;
         }
@@ -277,47 +287,38 @@ export default function Home() {
     if (transcript.length === 0) return;
 
     const analyzeTranscript = async () => {
+      const apiKey = contextRef.current.groqApiKey || process.env.NEXT_PUBLIC_GROQ_API_KEY;
+      if (!apiKey) {
+        setApiError("Groq API Key is missing! Please add it in the setup panel.");
+        return;
+      }
       setIsAnalyzing(true);
       setApiError(null);
       try {
-        const response = await fetch('/api/analyze', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            transcript: transcript.slice(-10),
-            focus: contextRef.current.interviewFocus,
-            resume: contextRef.current.resumeText,
-            jobDescription: contextRef.current.jobDescription,
-            agendaItems: contextRef.current.agendaItems.filter(item => !item.checked),
-            currentSuggestions: contextRef.current.suggestions.map(s => s.text)
-          }) // Send last 10 lines, context, unchecked agenda, and active suggestions
+        const data = await analyzeTranscriptClient({
+          apiKey,
+          transcript: transcript.slice(-10),
+          focus: contextRef.current.interviewFocus,
+          resume: contextRef.current.resumeText,
+          jobDescription: contextRef.current.jobDescription,
+          agendaItems: contextRef.current.agendaItems.filter(item => !item.checked),
+          currentSuggestions: contextRef.current.suggestions.map((s: any) => s.text)
         });
         
-        if (response.ok) {
-          const data = await response.json();
-          if (data.suggestions && data.suggestions.length > 0) {
-            setSuggestions(prev => [...prev, ...data.suggestions].slice(-5));
-          } else {
-            setApiError("AI returned no suggestions.");
-          }
-          if (data.completed_agenda_ids && data.completed_agenda_ids.length > 0) {
-            // DSA Optimization: O(1) Set lookup instead of O(N) array includes
-            const completedSet = new Set(data.completed_agenda_ids);
-            setAgendaItems(prev => prev.map(item => 
-              completedSet.has(item.id) ? { ...item, checked: true } : item
-            ));
-          }
+        if (data.suggestions && data.suggestions.length > 0) {
+          setSuggestions(prev => [...prev, ...data.suggestions].slice(-5));
         } else {
-          try {
-            const errorData = await response.json();
-            setApiError(`API Error: ${errorData.error || response.statusText}`);
-          } catch {
-            setApiError(`API Error: ${response.status} ${response.statusText}`);
-          }
+          setApiError("AI returned no suggestions.");
+        }
+        if (data.completed_agenda_ids && data.completed_agenda_ids.length > 0) {
+          const completedSet = new Set(data.completed_agenda_ids);
+          setAgendaItems(prev => prev.map(item => 
+            completedSet.has(item.id) ? { ...item, checked: true } : item
+          ));
         }
       } catch (error: any) {
-        console.error("Failed to analyze transcript", error);
-        setApiError("Failed to connect to AI server.");
+        console.error("Analysis Error:", error);
+        setApiError(`API Error: ${error.message || error.toString()}`);
       } finally {
         setIsAnalyzing(false);
       }
@@ -574,6 +575,42 @@ export default function Home() {
                 <h3 className="text-xl font-semibold text-slate-100 mb-2 font-display">Pre-Flight Setup</h3>
                 <p className="text-sm text-slate-400 mb-8">Provide context below to get hyper-personalized AI insights during the interview.</p>
                 <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-900/50 p-4 rounded-xl border border-red-500/20">
+                    <div>
+                      <label className="block text-sm font-medium text-red-300 mb-2 flex items-center gap-2">
+                        Groq API Key <span className="text-xs font-normal text-red-400/70">(Required)</span>
+                      </label>
+                      <input 
+                        type="password"
+                        value={groqApiKey}
+                        onChange={(e) => {
+                          setGroqApiKey(e.target.value);
+                          localStorage.setItem("groqApiKey", e.target.value);
+                        }}
+                        className="w-full bg-slate-950/80 border border-red-500/30 rounded-lg p-2.5 text-sm text-slate-200 focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none transition-all"
+                        placeholder="gsk_..."
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-red-300 mb-2 flex items-center gap-2">
+                        Deepgram API Key <span className="text-xs font-normal text-red-400/70">(Required)</span>
+                      </label>
+                      <input 
+                        type="password"
+                        value={deepgramApiKey}
+                        onChange={(e) => {
+                          setDeepgramApiKey(e.target.value);
+                          localStorage.setItem("deepgramApiKey", e.target.value);
+                        }}
+                        className="w-full bg-slate-950/80 border border-red-500/30 rounded-lg p-2.5 text-sm text-slate-200 focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none transition-all"
+                        placeholder="Live transcription key..."
+                      />
+                    </div>
+                    <p className="text-xs text-red-400/80 md:col-span-2">
+                      Keys are saved locally in your browser. This app runs 100% client-side so your keys are sent directly to Groq/Deepgram.
+                    </p>
+                  </div>
+
                   <div>
                     <label className="block text-sm font-medium text-slate-300 mb-2 flex items-center gap-2">
                       Candidate Resume <span className="text-xs font-normal text-slate-500">(Optional)</span>
