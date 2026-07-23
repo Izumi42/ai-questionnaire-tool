@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { Mic, MicOff, User, HandHeart, AlertCircle, HelpCircle, MonitorUp, Star, Download, X, Trash2 } from "lucide-react";
+import { Mic, MicOff, User, HandHeart, AlertCircle, HelpCircle, MonitorUp, Star, Download, X, Trash2, Settings } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { analyzeTranscriptClient } from "@/lib/groqClient";
 
@@ -31,6 +31,7 @@ export default function Home() {
   const [showEvaluation, setShowEvaluation] = useState(false);
   const [manualRating, setManualRating] = useState<number>(0);
   const [showNewSessionModal, setShowNewSessionModal] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // API Key States
   const [groqApiKey, setGroqApiKey] = useState("");
@@ -526,6 +527,10 @@ export default function Home() {
           <button onClick={handleNewSessionClick} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-sm font-medium transition-colors">
             New Session
           </button>
+          <button onClick={() => setIsSettingsOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-sm font-medium transition-colors" title="API Settings">
+            <Settings className="w-4 h-4" />
+            API Keys
+          </button>
         </div>
         </div>
       </header>
@@ -583,40 +588,17 @@ export default function Home() {
                 <h3 className="text-xl font-semibold text-slate-100 mb-2 font-display">Pre-Flight Setup</h3>
                 <p className="text-sm text-slate-400 mb-8">Provide context below to get hyper-personalized AI insights during the interview.</p>
                 <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-900/50 p-4 rounded-xl border border-red-500/20">
+                  <div className="flex items-center justify-between bg-slate-900/50 p-4 rounded-xl border border-white/10">
                     <div>
-                      <label className="block text-sm font-medium text-red-300 mb-2 flex items-center gap-2">
-                        Groq API Key <span className="text-xs font-normal text-red-400/70">(Required)</span>
-                      </label>
-                      <input 
-                        type="password"
-                        value={groqApiKey}
-                        onChange={(e) => {
-                          setGroqApiKey(e.target.value);
-                          localStorage.setItem("groqApiKey", e.target.value);
-                        }}
-                        className="w-full bg-slate-950/80 border border-red-500/30 rounded-lg p-2.5 text-sm text-slate-200 focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none transition-all"
-                        placeholder="gsk_..."
-                      />
+                      <h4 className="text-sm font-medium text-slate-200 mb-1">API Configuration</h4>
+                      <p className="text-xs text-slate-400">Set your Groq and Deepgram API keys to enable AI features.</p>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-red-300 mb-2 flex items-center gap-2">
-                        Deepgram API Key <span className="text-xs font-normal text-red-400/70">(Required)</span>
-                      </label>
-                      <input 
-                        type="password"
-                        value={deepgramApiKey}
-                        onChange={(e) => {
-                          setDeepgramApiKey(e.target.value);
-                          localStorage.setItem("deepgramApiKey", e.target.value);
-                        }}
-                        className="w-full bg-slate-950/80 border border-red-500/30 rounded-lg p-2.5 text-sm text-slate-200 focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none transition-all"
-                        placeholder="Live transcription key..."
-                      />
-                    </div>
-                    <p className="text-xs text-red-400/80 md:col-span-2">
-                      Keys are saved locally in your browser. This app runs 100% client-side so your keys are sent directly to Groq/Deepgram.
-                    </p>
+                    <button 
+                      onClick={() => setIsSettingsOpen(true)}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${(!groqApiKey || !deepgramApiKey) ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30' : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700'}`}
+                    >
+                      {(!groqApiKey || !deepgramApiKey) ? 'Configure Keys' : 'Manage Keys'}
+                    </button>
                   </div>
 
                   <div>
@@ -801,6 +783,86 @@ export default function Home() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* API Settings Modal */}
+      <AnimatePresence>
+        {isSettingsOpen && (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="glass-panel w-full max-w-lg rounded-3xl overflow-hidden flex flex-col relative"
+            >
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-purple-500"></div>
+              <div className="p-6 border-b border-white/5 flex items-center justify-between bg-slate-900/30">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center border border-indigo-500/30">
+                    <Settings className="w-4 h-4 text-indigo-400" />
+                  </div>
+                  <h2 className="text-xl font-bold text-slate-100 font-display">API Settings</h2>
+                </div>
+                <button onClick={() => setIsSettingsOpen(false)} className="p-2 text-slate-400 hover:text-slate-200 transition-colors bg-slate-800/50 rounded-full hover:bg-slate-700/50">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="p-6 space-y-6 bg-slate-950/50">
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2 flex items-center gap-2">
+                    Groq API Key <span className="text-xs font-normal text-slate-500">(Required)</span>
+                  </label>
+                  <input 
+                    type="password"
+                    value={groqApiKey}
+                    onChange={(e) => {
+                      setGroqApiKey(e.target.value);
+                      localStorage.setItem("groqApiKey", e.target.value);
+                    }}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all shadow-inner"
+                    placeholder="gsk_..."
+                  />
+                  <p className="mt-2 text-xs text-slate-500">Used for generating AI insights from the conversation.</p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2 flex items-center gap-2">
+                    Deepgram API Key <span className="text-xs font-normal text-slate-500">(Required)</span>
+                  </label>
+                  <input 
+                    type="password"
+                    value={deepgramApiKey}
+                    onChange={(e) => {
+                      setDeepgramApiKey(e.target.value);
+                      localStorage.setItem("deepgramApiKey", e.target.value);
+                    }}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all shadow-inner"
+                    placeholder="Live transcription key..."
+                  />
+                  <p className="mt-2 text-xs text-slate-500">Used for real-time speech-to-text transcription.</p>
+                </div>
+
+                <div className="p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-300/80 text-xs leading-relaxed flex gap-3 items-start">
+                  <AlertCircle className="w-5 h-5 flex-shrink-0 text-indigo-400" />
+                  <p>
+                    Security Note: Your keys are never sent to our servers. They are stored locally in your browser's <code className="bg-slate-900 px-1 rounded text-indigo-400">localStorage</code> and transmitted securely directly to the respective API providers.
+                  </p>
+                </div>
+              </div>
+              
+              <div className="p-6 border-t border-slate-800 bg-slate-900/50 flex justify-end">
+                <button 
+                  onClick={() => setIsSettingsOpen(false)}
+                  className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-medium transition-colors shadow-lg shadow-indigo-500/20"
+                >
+                  Done
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
 
     </div>
   );
