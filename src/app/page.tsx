@@ -284,7 +284,7 @@ export default function Home() {
       pip.document.head.appendChild(meta);
 
       // Base Tailwind classes for the body of the PiP window to match dark theme with glass effect
-      pip.document.body.className = "bg-slate-950/80 backdrop-blur-2xl text-slate-100 font-sans p-6 selection:bg-indigo-500/30 overflow-hidden";
+      pip.document.body.className = "bg-slate-950/40 backdrop-blur-md text-slate-100 font-sans p-6 selection:bg-indigo-500/30 overflow-hidden";
 
       pip.addEventListener("pagehide", () => {
         setPipWindow(null);
